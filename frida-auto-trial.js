@@ -1,19 +1,19 @@
-// frida-auto-trial.js — Google AI Ultra trial: discover + activate
+// frida-auto-trial.js — Tìm ưu đãi dùng thử Google AI và mở giao diện thanh toán
 // 博客：https://blog.caowo.de/
 // 发卡网：https://faka.cdkey.si/
 //
-// Usage:
+// Cách gọi trực tiếp trong tài liệu gốc
 //   frida -H 127.0.0.1:<PORT> -p <PID> -l frida-auto-trial.js
 //
-// Logcat tag: AutoTrial
-// Shell script auto-trial.sh patches the CONFIG lines below.
+// Thẻ nhật ký Android là AutoTrial.
+// Script auto-trial.sh điền giá trị vào phần cấu hình bên dưới.
 
-// ===== CONFIG (auto-trial.sh patches these) =====
+// ===== CẤU HÌNH =====
 var MODE = "activate";           // "list" | "activate"
 var TARGET_PRODUCT = "auto";     // "auto" | "g1.play.ai.pro" | "g1.play.20tb"
 var PREFER_DURATION = "longest"; // "longest" | "1mo" | "3mo" | "6mo" | "12mo"
 var MODULE_APK = "/data/local/tmp/module.apk";
-// ===== END CONFIG =====
+// ===== HẾT CẤU HÌNH =====
 
 Java.perform(function() {
     var TAG = "AutoTrial";
@@ -27,7 +27,7 @@ Java.perform(function() {
 
     Log.i(TAG, "=== AUTO_TRIAL_START mode=" + MODE + " target=" + TARGET_PRODUCT + " prefer=" + PREFER_DURATION + " ===");
 
-    // --- Load BillingClient from module APK ---
+// --- Nạp BillingClient từ APK ---
     var DexClassLoader = Java.use("dalvik.system.DexClassLoader");
     var dexLoader = DexClassLoader.$new(
         MODULE_APK,
@@ -54,7 +54,7 @@ Java.perform(function() {
     var DUR = { "P1M": 1, "P3M": 3, "P6M": 6, "P1Y": 12 };
     var ALIAS = { "1mo": "P1M", "3mo": "P3M", "6mo": "P6M", "12mo": "P1Y" };
 
-    // --- Purchase callback ---
+// --- Xử lý kết quả giao dịch ---
     var purchaseListener = Java.registerClass({
         name: "com.frida.auto.PL",
         implements: [PurchasesUpdatedListener],
@@ -129,7 +129,7 @@ Java.perform(function() {
         var list = Java.cast(pdList, List);
         Log.i(TAG, "Products found: " + list.size());
 
-        // Collect every trial offer across all products
+// Thu thập ưu đãi dùng thử từ mọi gói trả về.
         var trials = [];   // [{product, offerId, duration, months, pd, offer}]
 
         for (var i = 0; i < list.size(); i++) {
@@ -147,7 +147,7 @@ Java.perform(function() {
                 var oid = o.getOfferId();
                 var phases = Java.cast(o.getPricingPhases().getPricingPhaseList(), List);
 
-                // Tags
+// Nhãn của ưu đãi
                 var tags = Java.cast(o.getOfferTags(), List);
                 var tagStr = "";
                 for (var t = 0; t < tags.size(); t++) tagStr += (t > 0 ? "," : "") + tags.get(t);
@@ -178,7 +178,7 @@ Java.perform(function() {
             }
         }
 
-        // Summary
+// Tóm tắt kết quả
         Log.i(TAG, "");
         Log.i(TAG, "TRIALS_FOUND " + trials.length);
         for (var i = 0; i < trials.length; i++) {
@@ -191,8 +191,8 @@ Java.perform(function() {
             return;
         }
 
-        // --- Select best trial ---
-        // Filter by target product
+// --- Chọn ưu đãi dùng thử ---
+// Lọc theo gói được yêu cầu.
         var candidates = [];
         for (var i = 0; i < trials.length; i++) {
             if (TARGET_PRODUCT === "auto" || trials[i].product === TARGET_PRODUCT) {
@@ -228,7 +228,7 @@ Java.perform(function() {
         Log.i(TAG, "SELECTED " + selected.product + " / " + selected.offerId + " (" + selected.months + " months)");
         Log.i(TAG, "Waiting for Activity to stabilize...");
 
-        // --- Get Activity ---
+// --- Lấy Activity đang hoạt động ---
         var act = null;
         try {
             Java.classFactory.loader = null;
@@ -251,7 +251,7 @@ Java.perform(function() {
         }
         if (!act) { Log.e(TAG, "=== NO_ACTIVITY ==="); return; }
 
-        // --- Launch billing flow on UI thread ---
+// --- Mở giao diện thanh toán trên luồng giao diện ---
         var token = selected.offer.getOfferToken();
         var finalPd = selected.pd;
         var finalAct = act;
@@ -267,7 +267,7 @@ Java.perform(function() {
             methods: {
                 run: function() {
                     try {
-                        // Re-fetch Activity on UI thread to ensure it's current
+// Lấy lại Activity trên luồng giao diện để dùng màn hình hiện tại.
                         var uiAct = finalAct;
                         try {
                             Java.classFactory.loader = null;
@@ -301,7 +301,7 @@ Java.perform(function() {
                 }
             }
         }).$new();
-        // Delay 1.5s to let Activity fully render before launching billing overlay
+// Chờ 1,5 giây để Activity hiển thị xong trước khi mở giao diện thanh toán.
         launchHandler.postDelayed(LaunchRunnable, 1500);
     }
 
